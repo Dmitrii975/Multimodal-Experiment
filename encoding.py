@@ -2,23 +2,25 @@ from params import *
 from sentence_transformers import SentenceTransformer
 import torch
 import torch.nn as nn
-from torchvision import transforms, models
+from torchvision import transforms
 from PIL import Image
-import os
 import glob
 from tqdm import tqdm
+from sklearn.preprocessing import normalize
+
 
 class TextEncoder():
     def __init__(self, model_name="thenlper/gte-base"):
         self.model = SentenceTransformer(model_name).to(DEVICE)
     def encode_list(self, sentences):
         text_embeddings = self.model.encode(sentences, batch_size=TEXT_ENCODE_BATCH_SIZE, show_progress_bar=True)
-
-        return text_embeddings
+        embeddings_normalized = normalize(text_embeddings, norm='l2')
+        
+        return embeddings_normalized
 
 class ImageEncoder():
     def __init__(self, model):
-        
+
         self.model = model
         self.model.fc = nn.Identity() 
         self.model = self.model.to(DEVICE)
