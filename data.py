@@ -1,10 +1,11 @@
 '''
+    object2 and type2 MUST BE A TEXT!
     type1 - image(path to image) - type2 - text(string) => object_id1 - object_id2 
 '''
 import pandas as pd
 import numpy as np
 from params import *
-
+from torch.utils.data import Dataset, DataLoader
 
 class ImageCell():
     def __init__(self, gid, pth):
@@ -36,14 +37,14 @@ class InitialDataset():
     def __init__(self, df: pd.DataFrame):
         self.df = df
         self.create_global_ids()
-        self.objects = self.parse_into_objects()
+        self.objects = self._parse_into_objects()
 
     def create_global_ids(self):
         ln = len(self.df)
         self.df[GLOBAL_ID1_COLUMN_NAME] = list(range(ln))
         self.df[GLOBAL_ID2_COLUMN_NAME] = list(range(ln, 2 * ln))
 
-    def parse_into_objects(self):
+    def _parse_into_objects(self):
         part1 = self.df[[GLOBAL_ID1_COLUMN_NAME, TYPE1_COLUMN_NAME, OBJECT1_COLUMN_NAME]]
         part2 = self.df[[GLOBAL_ID2_COLUMN_NAME, TYPE2_COLUMN_NAME, OBJECT2_COLUMN_NAME]]
 
@@ -88,3 +89,15 @@ class InitialDataset():
     
     def get_object_by_global_id(self, id):
         return self.objects[id]
+
+
+class ID_Dataset(Dataset):
+    def __init__(self, iddf, id_to_emb):
+        self.pairs = iddf.values
+        self.id_to_emb = id_to_emb
+
+    def __len__(self):
+        return len(self.pairs)
+
+    def __getitem__(self, index):
+        return self.pairs[0], self.id_to_emb[self.pairs[0]], self.pairs[1], self.id_to_emb[self.pairs[1]] 

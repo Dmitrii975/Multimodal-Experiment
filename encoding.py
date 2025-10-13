@@ -2,9 +2,8 @@ from params import *
 from sentence_transformers import SentenceTransformer
 import torch
 import torch.nn as nn
-from torchvision import transforms
+from torchvision import transforms, models
 from PIL import Image
-import glob
 from tqdm import tqdm
 from sklearn.preprocessing import normalize
 
@@ -19,7 +18,7 @@ class TextEncoder():
         return embeddings_normalized
 
 class ImageEncoder():
-    def __init__(self, model):
+    def __init__(self, model=models.resnet18(weights='IMAGENET1K_V1')):
 
         self.model = model
         self.model.fc = nn.Identity() 
@@ -36,12 +35,11 @@ class ImageEncoder():
             )
         ])
 
-    def encode_from_path(self, images_path):
-        self.image_files = glob.glob(images_path + '/*.jpg')
+    def encode_from_paths(self, images_paths):
         img_embeddings = dict()
 
         with torch.no_grad():
-            for img_path in tqdm(self.image_files):
+            for img_path in tqdm(images_paths):
                 with Image.open(img_path).convert('RGB') as img:
                     img_tensor = self.transform(img).unsqueeze(0).to(DEVICE)
 
