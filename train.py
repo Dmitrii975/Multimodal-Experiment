@@ -21,14 +21,14 @@ class Trainer():
             for data in tqdm(self.dataloader):
                 self.optimizer.zero_grad()
 
-                y, x = data
+                _, emb_x, _, emb_y = data
 
-                y = y.to(DEVICE)
-                x = x.to(DEVICE)
+                emb_x = emb_x.to(DEVICE)
+                emb_y = emb_y.to(DEVICE)
 
-                pred = self.model(x)
+                pred = self.model(emb_x)
 
-                loss = self.criterion(pred, y)
+                loss = self.criterion(pred, emb_y)
 
                 loss.backward()
 
