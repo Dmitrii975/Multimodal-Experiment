@@ -100,4 +100,4 @@ class ID_Dataset(Dataset):
         return len(self.pairs)
 
     def __getitem__(self, index):
-        return self.pairs[0], self.id_to_emb[self.pairs[0]], self.pairs[1], self.id_to_emb[self.pairs[1]] 
+        return self.pairs[index][0], self.id_to_emb[self.pairs[index][0]], self.pairs[index][1], self.id_to_emb[self.pairs[index][1]] 
