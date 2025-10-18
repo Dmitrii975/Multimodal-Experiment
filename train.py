@@ -4,14 +4,14 @@ from tqdm.auto import tqdm
 
 
 class Trainer():
-    def __init__(self, model, dataset, epochs, batch_size, optimizer, criterion, shuffle=True, num_workers=2, pm=True, ce=5):
+    def __init__(self, model, dataset, dl, epochs, batch_size, optimizer, criterion, ce=5):
         self.model = model
         self.epochs = epochs
         self.batch_size = batch_size
         self.dataset = dataset
         self.optimizer = optimizer
         self.criterion = criterion
-        self.dataloader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pm)
+        self.dataloader = dl
         self.check_every = ce
 
     def train(self):
@@ -27,7 +27,6 @@ class Trainer():
                 emb_y = emb_y.to(DEVICE)
 
                 pred = self.model(emb_x)
-
                 loss = self.criterion(pred, emb_y)
 
                 loss.backward()
@@ -35,4 +34,5 @@ class Trainer():
                 self.optimizer.step()
 
                 total += loss.item()
-        print(f'Epoch {i+1}. Loss = {total/self.dataloader.batch_size}')
+            print(f'Epoch {i+1}. Loss = {total/self.dataloader.batch_size}')
+        return self.model

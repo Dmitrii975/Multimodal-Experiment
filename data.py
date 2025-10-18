@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from params import *
 from torch.utils.data import Dataset, DataLoader
+import torch
 
 class ImageCell():
     def __init__(self, gid, pth):
@@ -101,3 +102,14 @@ class ID_Dataset(Dataset):
 
     def __getitem__(self, index):
         return self.pairs[index][0], self.id_to_emb[self.pairs[index][0]], self.pairs[index][1], self.id_to_emb[self.pairs[index][1]] 
+    
+    def get_embs_from_ids(self, ids):
+        res = []
+        for i in ids:
+            emb = self.id_to_emb[i]
+            if type(emb) != torch.Tensor:
+                emb = torch.Tensor(emb)
+            res.append(emb)
+            
+        res = torch.stack(res)
+        return res
