@@ -63,5 +63,5 @@ if __name__ == '__main__':
         texts=id_text,
         images=t
     )
-
+    
     visual_validation(initial=initial, id_ds=ds, rds=ready, n_neib=10, n_samples=1)
