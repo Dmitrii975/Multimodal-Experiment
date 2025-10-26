@@ -7,8 +7,22 @@ import numpy as np
 from params import *
 from torch.utils.data import Dataset, DataLoader
 import torch
+from PIL import Image
+import matplotlib.pyplot as plt
 
-class ImageCell():
+#TODO Добавить аннотации к принимаемым и возвращаемым значениям
+
+class Cell():
+    def __init__(self):
+        self.type = None
+        self.global_id = None
+        self.content = None
+
+    def show(self):
+        pass
+
+
+class ImageCell(Cell):
     def __init__(self, gid, pth):
         self.type = TYPE_IMAGE
         self.global_id = gid
@@ -18,10 +32,13 @@ class ImageCell():
         if full_inf:
             pass
         else:
-            pass
+            img = Image.open(self.content)
+            plt.imshow(img)
+            plt.show()
+            img.close()
 
 
-class TextCell():
+class TextCell(Cell):
     def __init__(self, gid, content):
         self.type = TYPE_TEXT
         self.global_id = gid
@@ -44,6 +61,9 @@ class InitialDataset():
         ln = len(self.df)
         self.df[GLOBAL_ID1_COLUMN_NAME] = list(range(ln))
         self.df[GLOBAL_ID2_COLUMN_NAME] = list(range(ln, 2 * ln))
+
+    def get_all_global_ids(self):
+        return list(range(2 * len(self.df)))
 
     def _parse_into_objects(self):
         part1 = self.df[[GLOBAL_ID1_COLUMN_NAME, TYPE1_COLUMN_NAME, OBJECT1_COLUMN_NAME]]
@@ -113,3 +133,15 @@ class ID_Dataset(Dataset):
             
         res = torch.stack(res)
         return res
+    
+
+class Ready_Embeddings_Dataset():
+    def __init__(self, texts: dict, images: dict):
+        self.texts = texts
+        self.images = images
+
+    def get_text_emb_by_id(self, id):
+        return self.texts[id]
+    
+    def get_image_emb_by_id(self, id):
+        return self.images[id]

@@ -2,11 +2,10 @@ import pandas as pd
 from params import *
 from data import *
 import pickle
-from models import ConverterModel
+from models import *
 from torch import nn
 from torch.optim import Adam
 from train import Trainer
-import torch
 from eval import *
 from metrics import *
 
@@ -55,9 +54,14 @@ if __name__ == '__main__':
 
     model = trainer.train()
     e1 = ds.get_embs_from_ids(initial.return_id_df().iloc[:, 0].values)
-    e2 = ds.get_embs_from_ids(initial.return_id_df().iloc[:, 1].values)
 
     res1 = encode_tensors(model, e1)
-    print(res1.shape, e2.shape)
 
-    show_cosine_metric(res1, e2)
+    t = {i: v for i, v in zip(initial.return_id_df().iloc[:, 0].values, res1)}
+
+    ready = Ready_Embeddings_Dataset(
+        texts=id_text,
+        images=t
+    )
+
+    visual_validation(initial=initial, id_ds=ds, rds=ready, n_neib=10, n_samples=1)
