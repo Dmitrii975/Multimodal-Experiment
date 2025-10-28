@@ -12,8 +12,7 @@ from metrics import *
 def change_path(x):
     return 'data/flickr30k_images/flickr30k_images/' + x
 
-if __name__ == '__main__':
-
+if __name__ == 'main':
     df = pd.read_csv('data/flickr30k_images/results.csv', sep='|')
     df = df.dropna(axis=0)
     df['npth'] = df['image_name'].map(change_path)
@@ -46,7 +45,7 @@ if __name__ == '__main__':
         model=model,
         dataset=ds,
         dl=dataloader,
-        epochs=1,
+        epochs=20,
         batch_size=TRAIN_BATCH_SIZE,
         optimizer=optim,
         criterion=criterion
@@ -63,5 +62,5 @@ if __name__ == '__main__':
         texts=id_text,
         images=t
     )
-    
-    visual_validation(initial=initial, id_ds=ds, rds=ready, n_neib=10, n_samples=1)
+
+    visual_validation(initial=initial, id_ds=ds, rds=ready, n_neib=1, n_samples=1, sby='text')

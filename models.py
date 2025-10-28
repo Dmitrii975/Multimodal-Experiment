@@ -19,9 +19,9 @@ class ConverterModel(nn.Module):
     )
     self.dns = nn.Sequential(
         nn.Linear(512, 512, bias=False),
-        nn.Sigmoid(),
+        nn.ReLU(),
         nn.Linear(512, 512, bias=False),
-        nn.Sigmoid()
+        nn.ReLU()
     )
     self.out = nn.Sequential(
         nn.Linear(512, self.of, bias=False),
