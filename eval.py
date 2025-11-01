@@ -4,25 +4,6 @@ from random import randint
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
 
-# def show_closest_objects_by_id(id: int, initial: InitialDataset, n_neib: int, rds: Ready_Embeddings_Dataset):
-#     initial.get_object_by_global_id(id).show()
-#     print()
-
-#     ids = list(rds.images.keys())
-#     embeddings = np.array(list(rds.images.values()))
-
-#     nbrs = NearestNeighbors(n_neighbors=n_neib)
-#     nbrs.fit(embeddings)
-
-#     _, indices = nbrs.kneighbors([rds.get_text_emb_by_id(id)])
-
-#     found_ids = [ids[i] for i in indices[0]]
-
-#     print(f"--- SEARCH BY {initial.get_object_by_global_id(id).type} ---")
-#     for i in found_ids:
-#         initial.get_object_by_global_id(i).show()
-
-#     print('\n\n')
 
 def show_closest_objects_by_id(id: int, initial: InitialDataset, n_neib: int, rds: Ready_Embeddings_Dataset):
     query_obj = initial.get_object_by_global_id(id)
@@ -41,7 +22,7 @@ def show_closest_objects_by_id(id: int, initial: InitialDataset, n_neib: int, rd
         found_ids = [image_ids[i] for i in indices[0]]
         print(f"--- SEARCH BY TEXT -> IMAGES ---")
         
-    else:  # Запрос - изображение, ищем тексты
+    elif query_obj.type == TYPE_IMAGE:  # Запрос - изображение, ищем тексты
         query_embedding = rds.get_image_emb_by_id(id)   # Эмбеддинг изображения
         # Обучаем NearestNeighbors на эмбеддингах текстов
         text_ids = list(rds.texts.keys())
@@ -51,6 +32,17 @@ def show_closest_objects_by_id(id: int, initial: InitialDataset, n_neib: int, rd
         _, indices = nbrs.kneighbors([query_embedding])
         found_ids = [text_ids[i] for i in indices[0]]
         print(f"--- SEARCH BY IMAGE -> TEXTS ---")
+
+    elif query_obj.type == TYPE_AUDIO:
+        query_embedding = rds.get_audio_emb_by_id(id)   # Эмбеддинг аудио
+        # Обучаем NearestNeighbors на эмбеддингах текстов
+        text_ids = list(rds.texts.keys())
+        text_embeddings = np.array([rds.get_text_emb_by_id(i) for i in text_ids])
+        nbrs = NearestNeighbors(n_neighbors=n_neib)
+        nbrs.fit(text_embeddings)
+        _, indices = nbrs.kneighbors([query_embedding])
+        found_ids = [text_ids[i] for i in indices[0]]
+        print(f"--- SEARCH BY AUDIO -> TEXTS ---")
 
     for i in found_ids:
         initial.get_object_by_global_id(i).show()

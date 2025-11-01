@@ -35,7 +35,7 @@ class ImageEncoder():
             )
         ])
 
-    def encode_from_paths(self, dict_images_paths):
+    def encode_from_paths(self, dict_images_paths) -> dict:
         img_embeddings = {}
         image_items = list(dict_images_paths.items())
         total_items = len(image_items)
