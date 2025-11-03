@@ -36,13 +36,13 @@ def show_closest_objects_by_id(id: int, initial: InitialDataset, n_neib: int, rd
     elif query_obj.type == TYPE_AUDIO:
         query_embedding = rds.get_audio_emb_by_id(id)   # Эмбеддинг аудио
         # Обучаем NearestNeighbors на эмбеддингах текстов
-        text_ids = list(rds.texts.keys())
-        text_embeddings = np.array([rds.get_text_emb_by_id(i) for i in text_ids])
+        image_ids = list(rds.images.keys())
+        image_embeddings = np.array([rds.get_image_emb_by_id(i) for i in image_ids])
         nbrs = NearestNeighbors(n_neighbors=n_neib)
-        nbrs.fit(text_embeddings)
+        nbrs.fit(image_embeddings)
         _, indices = nbrs.kneighbors([query_embedding])
-        found_ids = [text_ids[i] for i in indices[0]]
-        print(f"--- SEARCH BY AUDIO -> TEXTS ---")
+        found_ids = [image_ids[i] for i in indices[0]]
+        print(f"--- SEARCH BY AUDIO -> IMAGE ---")
 
     for i in found_ids:
         initial.get_object_by_global_id(i).show()
@@ -53,7 +53,10 @@ def visual_validation(initial: InitialDataset, id_ds: ID_Dataset, rds: Ready_Emb
         print(f'---- SAMPLE {t+1} ----')
         oid, _, textid, _ = id_ds[randint(0, len(id_ds) - 1)]
 
-        if sby == 'text':
-            show_closest_objects_by_id(textid, initial, n_neib, rds)
-        else:
-            show_closest_objects_by_id(oid, initial, n_neib, rds)
+        if type(sby) == str:
+            if sby == 'text':
+                show_closest_objects_by_id(textid, initial, n_neib, rds)
+            else:
+                show_closest_objects_by_id(oid, initial, n_neib, rds)
+        elif type(sby) == int:
+            show_closest_objects_by_id(sby, initial, n_neib, rds)

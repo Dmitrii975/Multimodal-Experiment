@@ -31,7 +31,8 @@ class AudioCell(Cell):
         self.content = pth
     
     def show(self):
-        IPython.display.Audio(self.content)
+        # IPython.display.Audio(self.content)
+        print(self.content)
 
 
 class ImageCell(Cell):
@@ -104,8 +105,11 @@ class InitialDataset():
         
         return objects
 
-    def return_id_df(self) -> pd.DataFrame:
-        ids = self.df[[GLOBAL_ID1_COLUMN_NAME, GLOBAL_ID2_COLUMN_NAME]]
+    def return_id_df(self, mode='full') -> pd.DataFrame:
+        if mode == 'full':
+            ids = self.df[[GLOBAL_ID1_COLUMN_NAME, GLOBAL_ID2_COLUMN_NAME]]
+        else:
+            ids = self.df[self.df[TYPE1_COLUMN_NAME] == mode][[GLOBAL_ID1_COLUMN_NAME, GLOBAL_ID2_COLUMN_NAME]]
 
         return ids
 
@@ -130,7 +134,13 @@ class InitialDataset():
         for i, v in self.objects.items():
             if v.type == TYPE_AUDIO:
                 res[i] = v.content
-        
+    
+    def return_ids_of_objects(self, type: str):
+        res = []
+        for i, v in self.objects.items():
+            if v.type == type:
+                res.append(v.global_id)
+
         return res
     
     def get_object_by_global_id(self, id) -> Cell:
