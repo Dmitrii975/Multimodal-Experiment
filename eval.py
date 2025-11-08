@@ -7,8 +7,6 @@ import numpy as np
 
 def show_closest_objects_by_id(id: int, initial: InitialDataset, n_neib: int, rds: Ready_Embeddings_Dataset):
     query_obj = initial.get_object_by_global_id(id)
-    query_obj.show()
-    print()
 
     if query_obj.type == TYPE_TEXT:
         # Запрос - текст, ищем изображения
@@ -48,15 +46,13 @@ def show_closest_objects_by_id(id: int, initial: InitialDataset, n_neib: int, rd
         initial.get_object_by_global_id(i).show()
 
 
-def visual_validation(initial: InitialDataset, id_ds: ID_Dataset, rds: Ready_Embeddings_Dataset, n_samples=5, n_neib=5, sby='text'):
+def visual_validation(initial: InitialDataset, rds: Ready_Embeddings_Dataset, n_samples=5, n_neib=5, sby=TYPE_TEXT):
+    ids = initial.return_ids_of_objects(sby)
+
     for t in range(n_samples):
         print(f'---- SAMPLE {t+1} ----')
-        oid, _, textid, _ = id_ds[randint(0, len(id_ds) - 1)]
 
-        if type(sby) == str:
-            if sby == 'text':
-                show_closest_objects_by_id(textid, initial, n_neib, rds)
-            else:
-                show_closest_objects_by_id(oid, initial, n_neib, rds)
-        elif type(sby) == int:
-            show_closest_objects_by_id(sby, initial, n_neib, rds)
+        i = ids[randint(0, len(ids))]
+        initial.get_object_by_global_id(i).show()
+
+        show_closest_objects_by_id(i, initial, n_neib, rds)

@@ -9,10 +9,8 @@ from torch.utils.data import Dataset, DataLoader
 import torch
 from PIL import Image
 import matplotlib.pyplot as plt
-import IPython
+from IPython.display import display, Audio
 
-
-#TODO Добавить аннотации к принимаемым и возвращаемым значениям
 
 class Cell():
     def __init__(self):
@@ -31,8 +29,8 @@ class AudioCell(Cell):
         self.content = pth
     
     def show(self):
-        # IPython.display.Audio(self.content)
-        print(self.content)
+        audio = Audio(self.content, autoplay=False)
+        display(audio)
 
 
 class ImageCell(Cell):
@@ -46,7 +44,7 @@ class ImageCell(Cell):
             pass
         else:
             img = Image.open(self.content)
-            plt.imshow(img)
+            plt.imshow(img, cmap='gray')
             plt.show()
             img.close()
 
