@@ -13,15 +13,20 @@ import numpy as np
 class TextEncoder():
     def __init__(self, model_name="thenlper/gte-base"):
         self.model = SentenceTransformer(model_name).to(DEVICE)
-    def encode_list(self, sentences):
+
+    def encode_dict(self, dct: dict):
+        sentences = list(dct.values())
+        ids = list(dct.keys())
+
         text_embeddings = self.model.encode(sentences, batch_size=TEXT_ENCODE_BATCH_SIZE, show_progress_bar=True)
         embeddings_normalized = normalize(text_embeddings, norm='l2')
 
-        return embeddings_normalized
+        res = {i: v for i, v in zip(ids, embeddings_normalized)}
+
+        return res
 
 class AudioEncoder():
-    def init(self, model=models.resnet18(weights='IMAGENET1K_V1')):
-
+    def __init__(self, model=models.resnet18(weights='IMAGENET1K_V1')):
         self.model = model
         self.model.fc = nn.Identity()
         self.model = self.model.to(DEVICE)
@@ -38,47 +43,55 @@ class AudioEncoder():
         ])
 
     def wav_to_spectrogram_3ch(self, wav_path, n_fft=2048, hop_length=512, n_mels=224):
-        # Load the audio file
-        y, sr = librosa.load(wav_path, sr=None)  # Keep original sample rate
 
-        # Compute the Short-Time Fourier Transform (STFT)
+        y, sr = librosa.load(wav_path, sr=None)
+
         stft = librosa.stft(y, n_fft=n_fft, hop_length=hop_length)
 
-        # Compute the magnitude spectrogram
         magnitude_spectrogram = np.abs(stft)
 
-        # Convert to dB scale (log-magnitude)
-        log_spectrogram = librosa.amplitude_to_db(magnitude_spectrogram, ref=np.max)
+        log_spectrogram = librosa.amplitude_to_db(magnitude_spectrogram, ref=1.0)
 
-        # Resize the spectrogram to 224x224 using PIL for resampling
-        # Transpose to (time, freq) for PIL, then resize
-        spec_resized = np.array(Image.fromarray(log_spectrogram).resize((224, 224), resample=Image.BICUBIC))
+        spec_min = log_spectrogram.min()
+        spec_max = log_spectrogram.max()
 
-        # Normalize the spectrogram to [0, 1] range
-        spec_normalized = (spec_resized - spec_resized.min()) / (spec_resized.max() - spec_resized.min())
+        if spec_max == spec_min:
+            normalized_spectrogram = np.zeros_like(log_spectrogram, dtype=np.float64)
+        else:
+            normalized_spectrogram = (log_spectrogram - spec_min) / (spec_max - spec_min)
+            normalized_spectrogram = np.clip(normalized_spectrogram, 0.0, 1.0)
 
-        # Repeat the single channel to create 3 channels (like an RGB image)
-        spec_3ch = np.stack([spec_normalized] * 3, axis=-1)  # Shape: (224, 224, 3)
+        spec_255 = (normalized_spectrogram * 255).astype(np.uint8)
 
-        pil_image = Image.fromarray((spec_3ch * 255).astype(np.uint8), mode='RGB')
+        pil_image_obj = Image.fromarray(spec_255, mode='L')
 
-        return pil_image
+        pil_image_resized = pil_image_obj.resize((224, 224), resample=Image.Resampling.LANCZOS)
 
-    def encode_from_paths(self, dict_images_paths) -> dict:
-        img_embeddings = {}
-        image_items = list(dict_images_paths.items())
-        total_items = len(image_items)
+        spec_array_resized = np.array(pil_image_resized)
+        spec_3ch_array = np.stack([spec_array_resized] * 3, axis=-1)
+
+        pil_image_3ch = Image.fromarray(spec_3ch_array, mode='RGB')
+
+        return pil_image_3ch
+
+
+    def encode_from_paths(self, dict_audio_paths) -> dict:
+        audio_embeddings = {}
+        audio_items = list(dict_audio_paths.items()) 
+        total_items = len(audio_items)
 
         with torch.no_grad():
             for i in tqdm(range(0, total_items, IMAGE_ENCODE_BATCH_SIZE)):
-                batch_items = image_items[i:i + IMAGE_ENCODE_BATCH_SIZE]
-                batch_paths = [img_path for g_id, img_path in batch_items]
-                batch_g_ids = [g_id for g_id, img_path in batch_items]
+                batch_items = audio_items[i:i + IMAGE_ENCODE_BATCH_SIZE]
+                batch_paths = [audio_path for g_id, audio_path in batch_items] 
+                batch_g_ids = [g_id for g_id, audio_path in batch_items]
 
                 batch_tensors = []
-                for img_path in batch_paths:
-                    img = self.wav_to_spectrogram_3ch(img_path)
-                    img_tensor = self.transform(img)
+                for audio_path in batch_paths: 
+                    
+                    img_pil = self.wav_to_spectrogram_3ch(audio_path)
+                    
+                    img_tensor = self.transform(img_pil)
                     batch_tensors.append(img_tensor)
 
                 batch_img_tensor = torch.stack(batch_tensors).to(DEVICE)
@@ -86,9 +99,9 @@ class AudioEncoder():
                 batch_embeddings = self.model(batch_img_tensor)
 
                 for g_id, embedding in zip(batch_g_ids, batch_embeddings):
-                    img_embeddings[g_id] = embedding.cpu()
+                    audio_embeddings[g_id] = embedding.cpu()
 
-        return img_embeddings
+        return audio_embeddings 
 
 class ImageEncoder():
     def __init__(self, model=models.resnet18(weights='IMAGENET1K_V1')):

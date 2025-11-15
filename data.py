@@ -132,6 +132,8 @@ class InitialDataset():
         for i, v in self.objects.items():
             if v.type == TYPE_AUDIO:
                 res[i] = v.content
+        
+        return res
     
     def return_ids_of_objects(self, type: str):
         res = []

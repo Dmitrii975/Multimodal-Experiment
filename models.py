@@ -15,12 +15,12 @@ class ConverterModel(nn.Module):
 
     self.inp = nn.Sequential(
         nn.BatchNorm1d(self.inf),
-        nn.Linear(self.inf, 512, bias=False)
+        nn.Linear(self.inf, 384, bias=False)
     )
     self.dns = nn.Sequential(
-        nn.Linear(512, 512, bias=False),
+        nn.Linear(384, 384, bias=False),
         nn.ReLU(),
-        nn.Linear(512, 512, bias=False),
+        nn.Linear(384, 512, bias=False),
         nn.ReLU()
     )
     self.out = nn.Sequential(
