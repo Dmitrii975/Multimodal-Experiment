@@ -52,3 +52,5 @@ class Trainer():
                 print(f'Epoch {i+1}. Loss = {total/self.dataloader.batch_size}')
             
         return self.model
+
+

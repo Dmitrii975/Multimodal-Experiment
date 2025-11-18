@@ -10,6 +10,8 @@ import torch
 from PIL import Image
 import matplotlib.pyplot as plt
 from IPython.display import display, Audio
+from torchvision import transforms
+import librosa
 
 
 class Cell():
@@ -168,7 +170,119 @@ class ID_Dataset(Dataset):
             
         res = torch.stack(res)
         return res
+
+class Text_Dataset(Dataset):
+    def __init__(self, ids, initial: InitialDataset, tokenizer, max_length=128):
+        self.ids = ids
+        self.initial = initial
+        self.tokenizer = tokenizer
+        self.max_length = max_length
     
+    def __len__(self):
+        return len(self.texts)
+    
+    def __getitem__(self, index):
+        encoding = self.tokenizer(
+            self.initial.get_object_by_global_id(self.ids[index]).content,
+            max_length=self.max_length,
+            padding='max_length',
+            truncation=True,
+            return_tensors='pt'
+        )
+        return encoding['input_ids'].flatten()
+
+class Image_Dataset(Dataset):
+    def __init__(self, ids, initial: InitialDataset):
+        self.ids = ids
+        self.initial = initial
+        self.transform = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]
+            )
+        ])
+
+    def __len__(self):
+        return len(self.ids)
+
+    def __getitem__(self, index):
+        pth = self.initial.get_object_by_global_id(self.ids[index]).content
+        with Image.open(pth).convert('RGB') as img:
+            img_tensor = self.transform(img)
+        
+        return img_tensor
+    
+class Audio_Dataset(Dataset):
+    def __init__(self, ids, initial: InitialDataset):
+        self.ids = ids
+        self.initial = initial
+        self.transform = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]
+            )
+        ])
+    def wav_to_spectrogram_3ch(self, wav_path, n_fft=2048, hop_length=512, n_mels=224):
+
+        y, sr = librosa.load(wav_path, sr=None)
+
+        stft = librosa.stft(y, n_fft=n_fft, hop_length=hop_length)
+
+        magnitude_spectrogram = np.abs(stft)
+
+        log_spectrogram = librosa.amplitude_to_db(magnitude_spectrogram, ref=1.0)
+
+        spec_min = log_spectrogram.min()
+        spec_max = log_spectrogram.max()
+
+        if spec_max == spec_min:
+            normalized_spectrogram = np.zeros_like(log_spectrogram, dtype=np.float64)
+        else:
+            normalized_spectrogram = (log_spectrogram - spec_min) / (spec_max - spec_min)
+            normalized_spectrogram = np.clip(normalized_spectrogram, 0.0, 1.0)
+
+        spec_255 = (normalized_spectrogram * 255).astype(np.uint8)
+
+        pil_image_obj = Image.fromarray(spec_255, mode='L')
+
+        pil_image_resized = pil_image_obj.resize((224, 224), resample=Image.Resampling.LANCZOS)
+
+        spec_array_resized = np.array(pil_image_resized)
+        spec_3ch_array = np.stack([spec_array_resized] * 3, axis=-1)
+
+        pil_image_3ch = Image.fromarray(spec_3ch_array, mode='RGB')
+
+        return pil_image_3ch
+
+
+    def __len__(self):
+        return len(self.ids)
+
+    def __getitem__(self, index):
+        pth = self.initial.get_object_by_global_id(self.ids[index]).content
+
+        img_pil = self.wav_to_spectrogram_3ch(pth)
+        img_tensor = self.transform(img_pil)
+
+        return img_tensor
+
+class Orkester(Dataset):
+    def __init__(self, tds, ids, ads):
+        self.tds = tds
+        self.ids = ids
+        self.ads = ads
+
+    def __len__(self):
+        return len(self.tds)
+    
+    def __getitem__(self, index):
+        return self.tds[index], self.ids[index], self.ads[index]
 
 class Ready_Embeddings_Dataset():
     def __init__(self, texts: dict, images: dict, audios: dict):
