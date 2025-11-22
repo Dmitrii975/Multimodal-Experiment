@@ -179,7 +179,7 @@ class Text_Dataset(Dataset):
         self.max_length = max_length
     
     def __len__(self):
-        return len(self.texts)
+        return len(self.ids)
     
     def __getitem__(self, index):
         encoding = self.tokenizer(
@@ -199,10 +199,6 @@ class Image_Dataset(Dataset):
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]
-            )
         ])
 
     def __len__(self):
@@ -272,8 +268,20 @@ class Audio_Dataset(Dataset):
 
         return img_tensor
 
+class Anker_Dataset(Dataset):
+    def __init__(self, ids, id_text: dict):
+        self.ids = ids
+        self.id_text = id_text
+
+    def __len__(self):
+        return len(self.ids)
+    
+    def __getitem__(self, index):
+        return self.id_text[self.ids[index]]
+
 class Orkester(Dataset):
-    def __init__(self, tds, ids, ads):
+    def __init__(self, anker_ds, tds, ids, ads):
+        self.anker_ds = anker_ds
         self.tds = tds
         self.ids = ids
         self.ads = ads
@@ -282,7 +290,7 @@ class Orkester(Dataset):
         return len(self.tds)
     
     def __getitem__(self, index):
-        return self.tds[index], self.ids[index], self.ads[index]
+        return self.anker_ds[index], self.tds[index], self.ids[index], self.ads[index]
 
 class Ready_Embeddings_Dataset():
     def __init__(self, texts: dict, images: dict, audios: dict):

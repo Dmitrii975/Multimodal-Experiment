@@ -8,101 +8,59 @@ from tqdm import tqdm
 from sklearn.preprocessing import normalize
 import librosa
 import numpy as np
+import torch.nn.functional as F
 
 class MultiScaleCNN(nn.Module):
-    def __init__(self, input_channels=3, embedding_dim=128):
+    def __init__(self, input_channels=3, embedding_dim=768):
         super(MultiScaleCNN, self).__init__()
         
-        # Уровень 1: Детальные признаки (низкоуровневые)
         self.conv1 = nn.Sequential(
-            nn.Conv2d(input_channels, 64, 3, padding=1),
+            nn.Conv2d(input_channels, 32, 3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+        
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(32, 64, 3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.MaxPool2d(2)  # ↓ пространственное разрешение, ↑ семантическая плотность
+            nn.AdaptiveAvgPool2d((2, 2))  # Уменьшаем до 2x2
         )
         
-        # Уровень 2: Признаки среднего уровня
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(64, 128, 3, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(), 
-            nn.MaxPool2d(2)  # ↓ пространственное разрешение, ↑ семантическая плотность
-        )
-        
-        # Уровень 3: Высокоуровневые признаки
-        self.conv3 = nn.Sequential(
-            nn.Conv2d(128, 256, 3, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.AdaptiveAvgPool2d((4, 4))  # ↓ до фиксированного размера
-        )
-        
-        # Глобальный пулинг для каждого уровня (альтернатива выравниванию)
-        self.global_pool = nn.AdaptiveAvgPool2d(1)
-        
-        # Объединение РАЗНЫХ ТИПОВ признаков
-        total_features = 64 + 128 + 256  # Сумма каналов со всех уровней
-        self.fc = nn.Linear(total_features, embedding_dim)
-        
+        # После пулинга: [B, 64, 2, 2] → 64*2*2 = 256
+        self.fc = nn.Linear(256, embedding_dim)
+
     def forward(self, x):
-        # Извлекаем признаки разного уровня
-        features1 = self.conv1(x)  # Низкоуровневые
-        features2 = self.conv2(features1)  # Среднеуровневые  
-        features3 = self.conv3(features2)  # Высокоуровневые
-        
-        # Применяем глобальный пулинг к каждому уровню
-        global1 = self.global_pool(features1)  # [batch, 64, 1, 1]
-        global2 = self.global_pool(features2)  # [batch, 128, 1, 1]
-        global3 = self.global_pool(features3)  # [batch, 256, 1, 1]
-        
-        # Выравниваем и объединяем РАЗНЫЕ ТИПЫ признаков
-        global1_flat = global1.view(global1.size(0), -1)  # [batch, 64]
-        global2_flat = global2.view(global2.size(0), -1)  # [batch, 128]
-        global3_flat = global3.view(global3.size(0), -1)  # [batch, 256]
-        
-        # ОБЪЕДИНЕНИЕ: соединяем разные семантические уровни
-        combined_semantic = torch.cat([global1_flat, global2_flat, global3_flat], dim=1)
-        
-        # Финальный эмбеддинг
-        embedding = self.fc(combined_semantic)
-        
-        return embedding
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = x.view(x.size(0), -1)  # [B, 256]
+        embedding = self.fc(x)
+        return F.normalize(embedding, p=2, dim=1)
 
 class TextModel(nn.Module):
-    def __init__(self, vocab_size, embedding_dim=300, lstm_hidden=512, 
-                 hidden_dims=[1024, 512, 512], final_dim=512):
+    def __init__(self, vocab_size, embedding_dim=300, hidden_dim=768):
         super().__init__()
         
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, lstm_hidden, batch_first=True, bidirectional=True)
-        
-        # Динамическое создание линейных слоев
-        layers = []
-        input_size = lstm_hidden * 2  # bidirectional
-        
-        for hidden_dim in hidden_dims:
-            layers.extend([
-                nn.Linear(input_size, hidden_dim),
-                nn.ReLU(),
-                nn.Dropout(0.2)
-            ])
-            input_size = hidden_dim
-        
-        # Финальный слой
-        layers.append(nn.Linear(input_size, final_dim))
-        
-        self.linear_layers = nn.Sequential(*layers)
-        self.embedding_size = final_dim
-    
+        self.gru = nn.GRU(
+            input_size=embedding_dim,
+            hidden_size=hidden_dim,
+            batch_first=True,
+            bidirectional=False  # Упрощаем: односторонний, чтобы не удваивать размер
+        )
+        self.embedding_size = hidden_dim
+
     def forward(self, input_ids):
-        # Эмбеддинг + LSTM
-        x = self.embedding(input_ids)
-        lstm_out, _ = self.lstm(x)
-        last_hidden = lstm_out[:, -1, :]
+        x = self.embedding(input_ids)  # [B, T, D_emb]
+        output, hidden = self.gru(x)   # output: [B, T, H], hidden: [1, B, H]
         
-        # Через линейные слои
-        embeddings = self.linear_layers(last_hidden)
-        return embeddings
+        # Берем последнее состояние
+        last_hidden = output[:, -1, :]  # [B, H]
+        
+        # Нормализуем
+        normalized = F.normalize(last_hidden, p=2, dim=1)
+        return normalized
 
 class TextEncoder():
     def __init__(self, model_name="thenlper/gte-base"):
@@ -130,10 +88,6 @@ class AudioEncoder():
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]
-            )
         ])
 
     def wav_to_spectrogram_3ch(self, wav_path, n_fft=2048, hop_length=512, n_mels=224):
